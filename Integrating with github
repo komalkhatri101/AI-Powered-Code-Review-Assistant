@@ -1,0 +1,52 @@
+import os
+import requests
+from github import Github
+from simple_code_reviewer import SimpleCodeReviewer
+
+# GitHub Access Token (Create a GitHub token for access)
+ACCESS_TOKEN = 'your_github_token_here'
+REPO_NAME = 'your_username/your_repo'  # Replace with your repo name
+
+# Create a GitHub instance using the token
+g = Github(ACCESS_TOKEN)
+repo = g.get_repo(REPO_NAME)
+
+# Initialize SimpleCodeReviewer
+reviewer = SimpleCodeReviewer()
+
+# Function to fetch the code from a PR
+def fetch_pr_code(pr_number):
+    pr = repo.get_pull(pr_number)
+    files = pr.get_files()
+    code = ''
+    for file in files:
+        if file.filename.endswith('.py'):  # Only analyze Python files
+            code += file.patch
+    return code
+
+# Function to post comments on the PR
+def post_comment(pr_number, comment):
+    pr = repo.get_pull(pr_number)
+    pr.create_issue_comment(comment)
+
+# Function to review PR code
+def review_pr_code(pr_number):
+    code = fetch_pr_code(pr_number)
+    
+    # Use SimpleCodeReviewer to review the code
+    results = reviewer.review_code(code)
+    
+    # Post the review results as comments
+    post_comment(pr_number, results)
+
+# Main entry point to trigger when a PR is created or updated
+def main():
+    # Listen for new PRs or updates (you can set up a webhook to automatically trigger this)
+    pull_requests = repo.get_pulls(state='open', sort='created', base='main')
+    
+    for pr in pull_requests:
+        pr_number = pr.number
+        review_pr_code(pr_number)
+
+if __name__ == '__main__':
+    main()
